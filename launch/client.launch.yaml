@@ -9,7 +9,7 @@ launch:
 
 - node:
     pkg: "vrpn_mocap"
-    namespace: "vrpn_mocap"
+    namespace: ""
     exec: "client_node"
     name: "vrpn_mocap_client_node"
     param:
