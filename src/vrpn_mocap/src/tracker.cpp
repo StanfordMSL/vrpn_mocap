@@ -22,7 +22,7 @@
 
 #include "vrpn_mocap/tracker.hpp"
 
-#include <Eigen/Geometry>
+#include <eigen3/Eigen/Geometry>
 #include <chrono>
 #include <functional>
 #include <memory>
@@ -32,9 +32,10 @@
 namespace vrpn_mocap
 {
 
+using px4_msgs::msg::VehicleOdometry;
 using geometry_msgs::msg::AccelStamped;
-using geometry_msgs::msg::PoseStamped;
 using geometry_msgs::msg::TwistStamped;
+
 using namespace std::chrono_literals;
 
 std::string Tracker::ValidNodeName(const std::string & tracker_name)
@@ -99,23 +100,32 @@ void VRPN_CALLBACK Tracker::HandlePose(void * data, const vrpn_TRACKERCB tracker
   Tracker * tracker = static_cast<Tracker *>(data);
 
   // lazy initialization of publisher
-  auto pub = tracker->GetOrCreatePublisher<PoseStamped>(
-    static_cast<size_t>(tracker_pose.sensor), "pose", &tracker->pose_pubs_);
+  auto pub = tracker->GetOrCreatePublisher<VehicleOdometry>(
+    static_cast<size_t>(tracker_pose.sensor), "in/vehicle_visual_odometry", &tracker->pose_pubs_);
 
   // populate message
-  PoseStamped msg;
-  msg.header.frame_id = tracker->frame_id_;
-  msg.header.stamp = tracker->get_clock()->now();
+  VehicleOdometry msg;
 
-  msg.pose.position.x = tracker_pose.pos[0];
-  msg.pose.position.y = tracker_pose.pos[1];
-  msg.pose.position.z = tracker_pose.pos[2];
+  msg.timestamp = tracker->get_clock()->now().seconds();
+  
+  msg.pose_frame = msg.POSE_FRAME_FRD;
+  msg.position[0] = tracker_pose.pos[0];
+  msg.position[1] = tracker_pose.pos[2];
+  msg.position[2] = -tracker_pose.pos[1];
 
-  msg.pose.orientation.x = tracker_pose.quat[0];
-  msg.pose.orientation.y = tracker_pose.quat[1];
-  msg.pose.orientation.z = tracker_pose.quat[2];
-  msg.pose.orientation.w = tracker_pose.quat[3];
+  // msg.q[0] = tracker_pose.quat[0];
+  msg.q[0] = tracker_pose.quat[3];
+  msg.q[1] = tracker_pose.quat[0];
+  msg.q[2] = tracker_pose.quat[2];
+  msg.q[3] = -tracker_pose.quat[1];
 
+  msg.velocity_frame = msg.VELOCITY_FRAME_UNKNOWN;
+  msg.velocity = {NAN,NAN,NAN};
+  msg.angular_velocity = {NAN,NAN,NAN};
+  
+  msg.position_variance = {0.0,0.0,0.0};
+  msg.orientation_variance = {0.0,0.0,0.0};
+  msg.velocity_variance = {0.0,0.0,0.0};
   pub->publish(msg);
 }
 
